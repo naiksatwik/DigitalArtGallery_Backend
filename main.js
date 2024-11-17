@@ -3,8 +3,8 @@ const mysql = require('mysql2');
 const dotenv = require('dotenv');
 const bcrypt = require('bcrypt');
 const cors = require("cors");
-
-
+const bodyParser = require('body-parser');
+const multer = require('multer');
 
 dotenv.config();
 const app = express();
@@ -14,6 +14,12 @@ app.use(express.json());  // To parse JSON bodies
 
 app.use(cors({ origin: '*' }));
 
+// Middleware
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Configure Multer for file uploads
+const upload = multer({ storage: multer.memoryStorage() }); // Memory storage keeps files in memory as buffers
 
 
 // MySQL Database Connection
@@ -58,6 +64,78 @@ app.post('/user/register', async (req, res) => {
 });
 
 
+app.post('/add-artwork', upload.single('artwork_image'), (req, res) => {
+    console.log('Request Body:', req.body);
+    console.log('Uploaded File:', req.file);
+  
+    if (!req.file) {
+      return res.status(400).send({ error: 'Artwork Image is required' });
+    }
+  
+    const { artwork_name, price, about_artwork, artist_email } = req.body; // Use artist_email from the request body
+    const artwork_image = req.file;
+  
+    // Step 1: Find artist_id based on the provided email
+    const findArtistQuery = `
+      SELECT userid 
+      FROM registration 
+      WHERE email = ?
+    `;
+  
+    db.query(findArtistQuery, [artist_email], (err, results) => {
+      if (err) {
+        console.error('Database Error (Finding Artist):', err);
+        return res.status(500).send({ error: 'Database error occurred while finding artist' });
+      }
+  
+      if (results.length === 0) {
+        return res.status(404).send({ error: 'Artist not found with the given email' });
+      }
+  
+      const artist_id = results[0].userid;
+  
+      // Step 2: Insert the artwork using the found artist_id
+      const insertArtworkQuery = `
+        INSERT INTO Artworks (artwork_name, artwork_image, price, about_artwork, userid)
+        VALUES (?, ?, ?, ?, ?)
+      `;
+  
+      db.query(
+        insertArtworkQuery,
+        [artwork_name, artwork_image.buffer, price, about_artwork, artist_id],
+        (err, results) => {
+          if (err) {
+            console.error('Database Error (Inserting Artwork):', err);
+            return res.status(500).send({ error: 'Database error occurred while saving artwork' });
+          }
+  
+          res.send({ success: true, message: 'Artwork saved successfully!' });
+        }
+      );
+    });
+  });
+
+  app.get('/artworks', (req, res) => {
+    const query = 'SELECT * FROM Artworks';
+  
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error('Error fetching data:', err);
+        return res.status(500).json({ error: 'Failed to fetch data' });
+      }
+  
+      // Transform the blob data into readable formats if necessary
+      const transformedResults = results.map((artwork) => {
+        return {
+          ...artwork,
+          artwork_image: artwork.artwork_image ? artwork.artwork_image.toString('base64') : null, // Convert blob to Base64
+        };
+      });
+  
+      res.json(transformedResults);
+    });
+  });
+  
 
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
@@ -94,6 +172,7 @@ app.post('/login', (req, res) => {
         });
     });
 });
+
 
 
 

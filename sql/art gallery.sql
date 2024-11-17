@@ -16,21 +16,30 @@ CREATE TABLE profile (
     FOREIGN KEY (userid) REFERENCES registration(userid) ON DELETE CASCADE
 );
 
+select * from registration;
 
-CREATE TABLE artist (
-    artist_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL
+
+
+CREATE TABLE Artworks (
+    artwork_id INT AUTO_INCREMENT PRIMARY KEY,
+    artwork_name VARCHAR(255) NOT NULL,
+    artwork_image BLOB,
+    price DECIMAL(10, 2) NOT NULL,
+    about_artwork TEXT,
+    userid INT,
+    FOREIGN KEY (userid) REFERENCES registration(userid)
+        ON DELETE SET NULL
+        ON UPDATE CASCADE
 );
 
 
-ALTER TABLE registration
-ADD COLUMN user_type VARCHAR(20) DEFAULT 'user';
+
+-- ALTER TABLE registration
+-- ADD COLUMN user_type VARCHAR(20) DEFAULT 'user';
 
 
-ALTER TABLE artist
-ADD COLUMN user_type VARCHAR(20) DEFAULT 'artist';
+-- ALTER TABLE artist
+-- ADD COLUMN user_type VARCHAR(20) DEFAULT 'artist';
 
 
 -- DROP TABLE IF EXISTS registration;-- 
