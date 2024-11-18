@@ -1,11 +1,10 @@
 const express = require('express');
-// const mysql = require('mysql2');
+const mysql = require('mysql2');
 const dotenv = require('dotenv');
 const bcrypt = require('bcrypt');
 const cors = require("cors");
 const bodyParser = require('body-parser');
 const multer = require('multer');
-const mysql = require('mysql2/promise');
 
 dotenv.config();
 const app = express();
@@ -24,23 +23,19 @@ const upload = multer({ storage: multer.memoryStorage() }); // Memory storage ke
 
 
 // MySQL Database Connection
-const db = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME
+const db = mysql.createConnection({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
 });
 
-// Example query to verify connection
-(async () => {
-  try {
-      const connection = await db.getConnection();
-      console.log('Connected to MySQL database');
-      connection.release(); // Release connection back to the pool
-  } catch (err) {
-      console.error('Error connecting to the database:', err);
-  }
-})();
+db.connect((err) => {
+    if (err) throw err;
+    console.log('Connected to MySQL database');
+});
+
+
 
 
 app.post('/user/register', async (req, res) => {
@@ -107,7 +102,6 @@ app.post('/add-artwork', upload.single('artwork_image'), (req, res) => {
         VALUES (?, ?, ?, ?, ?)
       `;
   
-
       db.query(
         insertArtworkQuery,
         [artwork_name, artwork_image.buffer, price, about_artwork, artist_id],
@@ -123,8 +117,7 @@ app.post('/add-artwork', upload.single('artwork_image'), (req, res) => {
     });
   });
 
-
-app.get('/artworks', (req, res) => {
+  app.get('/artworks', (req, res) => {
     const query = 'SELECT * FROM Artworks';
   
     db.query(query, (err, results) => {
@@ -144,7 +137,24 @@ app.get('/artworks', (req, res) => {
       res.json(transformedResults);
     });
   });
+  
+app.delete("/artworks/:artworkId", (req, res) => {
+    const { artworkId } = req.params;
 
+    const query = "DELETE FROM Artworks WHERE artwork_id = ?";
+    db.query(query, [artworkId], (err, result) => {
+        if (err) {
+            console.error("Error deleting artwork:", err);
+            return res.status(500).json({ error: "Failed to delete artwork" });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Artwork not found" });
+        }
+
+        res.status(200).json({ message: "Artwork deleted successfully" });
+    });
+});
 
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
@@ -183,67 +193,12 @@ app.post('/login', (req, res) => {
 });
 
 
-app.get('/api/artworks/:userid', async (req, res) => {
-  const userId = req.params.userid;
-
-  try {
-      // Query the SQL function
-      const [rows] = await db.query('SELECT GetArtworksByUser(?) AS artworks', [userId]);
-
-      // Check if the result is already an object
-      const artworks = typeof rows[0].artworks === 'string' 
-          ? JSON.parse(rows[0].artworks) 
-          : rows[0].artworks;
-
-      // Respond with the result
-      res.json({
-          success: true,
-          data: artworks,
-      });
-  } catch (error) {
-      console.error('Error:', error.message);
-      res.status(500).json({
-          success: false,
-          message: 'Error fetching artworks',
-      });
-  }
-});
-
-app.delete('/api/artworks/:artwork_id', async (req, res) => {
-  const artworkId = req.params.artwork_id; // Extract artwork_id from URL parameters
-
-  try {
-      // SQL query to delete the artwork
-      const [result] = await db.query('DELETE FROM Artworks WHERE artwork_id = ?', [artworkId]);
-
-      // Check if any rows were affected (if an artwork was deleted)
-      if (result.affectedRows > 0) {
-          res.json({
-              success: true,
-              message: `Artwork with ID ${artworkId} deleted successfully.`,
-          });
-      } else {
-          res.status(404).json({
-              success: false,
-              message: `Artwork with ID ${artworkId} not found.`,
-          });
-      }
-  } catch (error) {
-      console.error('Error deleting artwork:', error.message);
-      res.status(500).json({
-          success: false,
-          message: 'Error deleting artwork',
-      });
-  }
-});
-  
 
 
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
-
 
 
 

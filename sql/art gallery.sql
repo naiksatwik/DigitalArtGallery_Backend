@@ -16,59 +16,26 @@ CREATE TABLE profile (
     FOREIGN KEY (userid) REFERENCES registration(userid) ON DELETE CASCADE
 );
 
-select * from registration;
 
-
-
-CREATE TABLE Artworks (
-    artwork_id INT AUTO_INCREMENT PRIMARY KEY,
-    artwork_name VARCHAR(255) NOT NULL,
-    artwork_image BLOB,
-    price DECIMAL(10, 2) NOT NULL,
-    about_artwork TEXT,
-    userid INT,
-    FOREIGN KEY (userid) REFERENCES registration(userid)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
+CREATE TABLE artist (
+    artist_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL
 );
 
 
-select * from Artworks;
+select  * from artist;
 
-ALTER TABLE Artworks MODIFY artwork_image LONGBLOB;
-
-
-DELIMITER //
-
-CREATE FUNCTION GetArtworksByUser(userId INT)
-RETURNS JSON
-DETERMINISTIC
-BEGIN
-    DECLARE result JSON;
-
-    SELECT JSON_ARRAYAGG(
-        JSON_OBJECT(
-            'artwork_id', artwork_id,
-            'artwork_name', artwork_name,
-            'price', price,
-            'about_artwork', about_artwork
-        )
-    ) INTO result
-    FROM Artworks
-    WHERE userid = userId;
-
-    RETURN result;
-END//
-
-DELIMITER ;
-
--- ALTER TABLE registration
--- ADD COLUMN user_type VARCHAR(20) DEFAULT 'user';
+ALTER TABLE registration
+ADD COLUMN user_type VARCHAR(20) DEFAULT 'user';
 
 
--- ALTER TABLE artist
--- ADD COLUMN user_type VARCHAR(20) DEFAULT 'artist';
+ALTER TABLE artist
+ADD COLUMN user_type VARCHAR(20) DEFAULT 'artist';
 
+
+select * from registration;
 
 -- DROP TABLE IF EXISTS registration;-- 
 
