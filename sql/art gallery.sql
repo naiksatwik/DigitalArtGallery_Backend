@@ -33,6 +33,34 @@ CREATE TABLE Artworks (
 );
 
 
+select * from Artworks;
+
+ALTER TABLE Artworks MODIFY artwork_image LONGBLOB;
+
+
+DELIMITER //
+
+CREATE FUNCTION GetArtworksByUser(userId INT)
+RETURNS JSON
+DETERMINISTIC
+BEGIN
+    DECLARE result JSON;
+
+    SELECT JSON_ARRAYAGG(
+        JSON_OBJECT(
+            'artwork_id', artwork_id,
+            'artwork_name', artwork_name,
+            'price', price,
+            'about_artwork', about_artwork
+        )
+    ) INTO result
+    FROM Artworks
+    WHERE userid = userId;
+
+    RETURN result;
+END//
+
+DELIMITER ;
 
 -- ALTER TABLE registration
 -- ADD COLUMN user_type VARCHAR(20) DEFAULT 'user';
