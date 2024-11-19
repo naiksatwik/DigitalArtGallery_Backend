@@ -25,6 +25,10 @@ CREATE TABLE artist (
 );
 
 
+select * from Artworks;
+
+
+
 select  * from artist;
 
 ALTER TABLE registration

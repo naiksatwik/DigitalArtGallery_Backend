@@ -193,6 +193,89 @@ app.post('/login', (req, res) => {
 });
 
 
+app.get('/profile', (req, res) => {
+  const { email } = req.query;
+  const sql = `SELECT r.userid, r.username, r.email, p.phone_number, p.user_image
+               FROM registration r
+               LEFT JOIN profile p ON r.userid = p.userid
+               WHERE r.email = ?`;
+
+  db.query(sql, [email], (err, result) => {
+      if (err) throw err;
+      if (result.length > 0) {
+          const profile = result[0];
+          if (profile.user_image) {
+              profile.user_image = Buffer.from(profile.user_image).toString('base64'); // Convert to base64
+          }
+          res.json(profile);
+      } else {
+          res.status(404).send("Profile not found");
+      }
+  });
+});
+
+
+app.put('/profile', upload.single('user_image'), (req, res) => {
+  const { email, phone_number } = req.body; // Extract email and phone_number from the request body
+  const userImage = req.file ? req.file.buffer : null; // Extract the uploaded image, if provided
+
+  // Step 1: Find the user by email in the `registration` table
+  const findUserQuery = `SELECT userid FROM registration WHERE email = ?`;
+
+  db.query(findUserQuery, [email], (err, userResult) => {
+      if (err) {
+          console.error('Error finding user by email:', err);
+          return res.status(500).send({ message: 'Internal server error' });
+      }
+
+      if (userResult.length === 0) {
+          return res.status(404).send({ message: 'User not found' });
+      }
+
+      const userId = userResult[0].userid;
+
+      // Step 2: Check if a profile already exists for the user in the `profile` table
+      const findProfileQuery = `SELECT * FROM profile WHERE userid = ?`;
+
+      db.query(findProfileQuery, [userId], (err, profileResult) => {
+          if (err) {
+              console.error('Error finding profile:', err);
+              return res.status(500).send({ message: 'Internal server error' });
+          }
+
+          if (profileResult.length === 0) {
+              // Step 3a: If no profile exists, insert a new profile
+              const insertProfileQuery = `
+                  INSERT INTO profile (userid, phone_number, user_image)
+                  VALUES (?, ?, ?)
+              `;
+              db.query(insertProfileQuery, [userId, phone_number, userImage], (err, insertResult) => {
+                  if (err) {
+                      console.error('Error inserting profile:', err);
+                      return res.status(500).send({ message: 'Error creating profile' });
+                  }
+
+                  return res.status(201).send({ message: 'Profile created successfully' });
+              });
+          } else {
+              // Step 3b: If a profile exists, update the existing profile
+              const updateProfileQuery = `
+                  UPDATE profile
+                  SET phone_number = ?, user_image = ?
+                  WHERE userid = ?
+              `;
+              db.query(updateProfileQuery, [phone_number, userImage, userId], (err, updateResult) => {
+                  if (err) {
+                      console.error('Error updating profile:', err);
+                      return res.status(500).send({ message: 'Error updating profile' });
+                  }
+
+                  return res.status(200).send({ message: 'Profile updated successfully' });
+              });
+          }
+      });
+  });
+});
 
 
 
