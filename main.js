@@ -125,15 +125,17 @@ app.post('/add-artwork', upload.single('artwork_image'), (req, res) => {
         console.error('Error fetching data:', err);
         return res.status(500).json({ error: 'Failed to fetch data' });
       }
-  
+
       // Transform the blob data into readable formats if necessary
       const transformedResults = results.map((artwork) => {
+        // console.log(artwork)
         return {
           ...artwork,
           artwork_image: artwork.artwork_image ? artwork.artwork_image.toString('base64') : null, // Convert blob to Base64
         };
       });
-  
+    
+    //   console.log(transformedResults)
       res.json(transformedResults);
     });
   });
@@ -192,6 +194,9 @@ app.post('/login', (req, res) => {
     });
 });
 
+
+
+// I USED JOIN
 
 app.get('/profile', (req, res) => {
   const { email } = req.query;
@@ -278,6 +283,80 @@ app.put('/profile', upload.single('user_image'), (req, res) => {
 });
 
 
+
+// I USED TRIGGER OVER HERE 
+app.get('/artworkss', (req, res) => {
+    const { email } = req.query;
+
+    if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Query to get userId
+    const getUserIdQuery = 'SELECT userid FROM registration WHERE email = ?';
+
+    db.query(getUserIdQuery, [email], (err, results) => {
+        if (err) {
+            console.error('Error fetching userId:', err);
+            return res.status(500).json({ error: 'Database error while fetching userId' });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const userId = results[0].userid;
+        console.log(`UserId for email ${email}:`, userId);
+
+        // Stored procedure or function query
+        const getArtworksQuery = 'SELECT GetArtworksByUserId(?) AS user_artworks';
+
+        db.query(getArtworksQuery, [userId], (err, artworkResults) => {
+            if (err) {
+                console.error('Error fetching artworks:', err);
+                return res.status(500).json({ error: 'Database error while fetching artworks' });
+            }
+
+            console.log('Artwork Query Results:', artworkResults);
+
+            if (!artworkResults || artworkResults.length === 0 || !artworkResults[0].user_artworks) {
+                return res.status(404).json({ error: 'No artworks found for this user' });
+            }
+
+            // Use the object directly
+            const artworks = artworkResults[0].user_artworks;
+
+            // Transform the artworks and convert binary data to Base64
+            const transformedResults = artworks.map((artwork) => ({
+                ...artwork,
+                artwork_image: artwork.artwork_image
+                    ? `data:image/jpeg;base64,${Buffer.from(artwork.artwork_image, 'binary').toString('base64')}`
+                    : null,
+            }));
+
+            // console.log('Transformed Artworks:', transformedResults);
+
+            return res.json(transformedResults);
+        });
+    });
+});
+
+
+app.get('/api/artworks/count', (req, res) => {
+    db.query('SELECT total_artworks FROM ArtworkSummary WHERE id = 1', (err, results) => {
+      if (err) {
+        console.error('Error fetching artwork count:', err);
+        return res.status(500).json({ error: 'Failed to fetch artwork count' });
+      }
+  
+      if (results.length === 0) {
+        return res.status(404).json({ error: 'No artwork count found' });
+      }
+  
+      res.json({ total_artworks: results[0].total_artworks });
+    });
+  });
+  
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
